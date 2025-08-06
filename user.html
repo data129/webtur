@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>বাজার দর - বাংলাদেশের কাঁচামাল বাজারদর</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent; }
+        :root { --primary: #2e7d32; --primary-dark: #1b5e20; --secondary: #f9a825; --light: #f5f5f5; --dark: #333; --danger: #d32f2f; --success: #388e3c; --warning: #ffa000; --gray: #757575; --border-radius: 12px; --shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
+        body { background: #f5f5f5; color: var(--dark); min-height: 100vh; padding-bottom: 80px; }
+        .container { max-width: 100%; margin: 0 auto; padding: 0 10px; }
+        header { background: linear-gradient(to right, var(--primary), var(--primary-dark)); color: white; padding: 15px 10px; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: space-between; }
+        .date-display { font-size: 12px; background: rgba(255, 255, 255, 0.2); padding: 4px 8px; border-radius: 20px; }
+        .user-profile { display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative; }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background-color: white; color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .user-menu { position: absolute; top: 40px; right: 0; background-color: white; border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 10px 0; width: 180px; z-index: 110; display: none; }
+        .user-menu.active { display: block; }
+        .user-menu-item { padding: 8px 15px; font-size: 14px; cursor: pointer; transition: background-color 0.3s; color: var(--dark); }
+        .user-menu-item:hover { background-color: #f5f5f5; }
+        .user-menu-item i { margin-right: 8px; width: 20px; text-align: center; color: var(--primary); }
+        .search-section { background-color: white; padding: 15px 10px; box-shadow: var(--shadow); position: sticky; top: 66px; z-index: 90; }
+        .search-container { display: flex; gap: 8px; }
+        .search-container input { flex: 1; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: var(--border-radius); font-size: 14px; outline: none; transition: border-color 0.3s; }
+        .search-container input:focus { border-color: var(--primary); }
+        .search-container button { background-color: var(--primary); color: white; border: none; border-radius: var(--border-radius); padding: 0 15px; font-size: 14px; cursor: pointer; min-width: 50px; }
+        .section-title { font-size: 16px; font-weight: 600; margin: 15px 0 10px; color: var(--primary-dark); display: flex; align-items: center; gap: 6px; }
+        .section-title i { font-size: 18px; }
+        .categories { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+        .category-card { background-color: white; border-radius: var(--border-radius); padding: 12px; text-align: center; box-shadow: var(--shadow); cursor: pointer; transition: box-shadow 0.2s; }
+        .category-card.active { box-shadow: 0 0 0 2px var(--primary); }
+        .category-icon { width: 40px; height: 40px; margin: 0 auto 8px; background-color: var(--light); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--primary); }
+        .category-name { font-size: 13px; font-weight: 500; }
+        .products-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .product-card { border: 1px solid #e0e0e0; border-radius: var(--border-radius); overflow: hidden; background: white; cursor: pointer; }
+        .product-image { height: 120px; background-color: #f5f5f5; display: flex; align-items: center; justify-content: center; }
+        .product-image img { width: 100%; height: 100%; object-fit: cover; }
+        .product-info { padding: 12px; }
+        .product-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; color: var(--dark); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .product-meta { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: var(--gray); }
+        .product-price { font-size: 16px; font-weight: 700; color: var(--primary-dark); margin-bottom: 8px; }
+        .price-change { display: flex; align-items: center; gap: 4px; font-weight: 600; font-size: 12px; }
+        .price-up { color: var(--danger); }
+        .price-down { color: var(--success); }
+        .added-by { font-size: 10px; color: var(--gray); margin-top: 4px; font-style: italic; }
+        footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; color: var(--dark); padding: 5px 0; display: flex; justify-content: space-around; z-index: 100; box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1); border-top: 1px solid #e0e0e0; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; padding: 5px 10px; border-radius: var(--border-radius); transition: color 0.3s; flex-basis: 0; flex-grow: 1; }
+        .nav-item i { font-size: 18px; }
+        .nav-item span { font-size: 12px; }
+        .nav-item.active { color: var(--primary); }
+        .tabs { display: flex; gap: 5px; margin: 10px 0 15px; background-color: #e0e0e0; border-radius: var(--border-radius); padding: 5px; position: sticky; top: 66px; z-index: 80; }
+        .tab { flex: 1; text-align: center; padding: 10px; border-radius: var(--border-radius); cursor: pointer; font-weight: 500; font-size: 14px; transition: background-color 0.3s; }
+        .tab.active { background-color: var(--primary); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .trend-chart { height: 150px; background-color: #f9f9f9; border-radius: var(--border-radius); margin-top: 15px; display: flex; align-items: flex-end; padding: 8px; gap: 8px; overflow-x: auto; }
+        
+        /* *** MODIFIED CSS for trend chart *** */
+        .trend-bar { flex: 1; min-width: 40px; border-radius: 5px 5px 0 0; position: relative; min-height: 1px; transition: height 0.5s ease-out, background-color 0.3s; }
+        .trend-label { position: absolute; top: -20px; left: 0; right: 0; text-align: center; font-size: 10px; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+        
+        .loading, .empty-state { text-align: center; padding: 30px 15px; grid-column: span 2; }
+        .spinner { width: 24px; height: 24px; border: 3px solid rgba(0, 0, 0, 0.1); border-radius: 50%; border-top-color: var(--primary); animation: spin 1s ease-in-out infinite; margin: 0 auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-state i { font-size: 40px; color: var(--gray); margin-bottom: 10px; }
+        .empty-state p { color: var(--gray); font-size: 14px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); z-index: 200; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background-color: white; border-radius: var(--border-radius); width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); animation: modalFadeIn 0.3s; }
+        @keyframes modalFadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-header { padding: 15px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
+        .modal-title { font-weight: 600; font-size: 18px; }
+        .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--gray); }
+        .modal-body { padding: 15px; }
+        .modal-footer { padding: 15px; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; gap: 10px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 14px; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: var(--border-radius); font-size: 14px; }
+        .btn { padding: 10px 15px; border: none; border-radius: var(--border-radius); font-weight: 600; cursor: pointer; transition: background-color 0.3s; }
+        .btn:disabled { background-color: var(--gray); cursor: not-allowed; }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: #e0e0e0; color: var(--dark); }
+        .add-product-btn { position: fixed; bottom: 80px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background-color: var(--primary); color: white; display: none; align-items: center; justify-content: center; font-size: 24px; box-shadow: var(--shadow); z-index: 90; cursor: pointer; }
+        .add-product-btn.visible { display: flex; }
+        .profile-section, .products-section { background-color: white; border-radius: var(--border-radius); padding: 15px; margin-bottom: 15px; box-shadow: var(--shadow); }
+        .profile-info-item { margin-bottom: 10px; }
+        .profile-info-label { font-weight: 500; color: var(--gray); font-size: 14px; }
+        .profile-info-value { font-size: 16px; }
+        .toast-notification { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background-color: var(--dark); color: white; padding: 10px 20px; border-radius: var(--border-radius); z-index: 1000; display: none; box-shadow: var(--shadow); }
+        .toast-notification.success { background-color: var(--success); }
+        .toast-notification.error { background-color: var(--danger); }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee; }
+        .list-item:last-child { border-bottom: none; }
+        .status-pending { color: var(--warning); font-weight: bold; }
+        @media (min-width: 480px) { .categories, .products-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (min-width: 768px) { .container { padding: 0 15px; } .categories, .products-grid { grid-template-columns: repeat(4, 1fr); } }
+    </style>
+</head>
+<body>
+    <div id="toast" class="toast-notification"></div>
+
+    <div class="container">
+        <div id="user-app">
+            <header>
+                <div class="date-display" id="current-date"></div>
+                <div class="user-profile" id="user-profile-menu">
+                    <div class="user-avatar" id="user-avatar-initial"><i class="fas fa-user"></i></div>
+                    <div class="user-menu" id="user-menu-dropdown">
+                        <div class="user-menu-item" id="login-btn"><i class="fas fa-sign-in-alt"></i> লগইন</div>
+                        <div class="user-menu-item" id="register-btn"><i class="fas fa-user-plus"></i> একাউন্ট খুলুন</div>
+                        <div class="user-menu-item" id="logout-btn" style="display: none;"><i class="fas fa-sign-out-alt"></i> লগআউট</div>
+                    </div>
+                </div>
+            </header>
+            
+            <div class="search-section">
+                <div class="search-container">
+                    <input type="text" id="search-input" placeholder="পণ্য খুঁজুন...">
+                    <button id="search-btn"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
+            
+            <div class="tabs">
+                <div class="tab active" data-tab="today">আজকের দর</div>
+                <div class="tab" data-tab="divisions">বিভাগ</div>
+                <div class="tab" data-tab="trends">প্রবণতা</div>
+            </div>
+            
+            <div class="tab-content active" id="today-tab">
+                <div class="products-section">
+                    <div class="section-title"><i class="fas fa-calendar-day"></i> আজকের বাজারদর</div>
+                    <div class="products-grid" id="today-products"><div class="loading"><div class="spinner"></div></div></div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="divisions-tab">
+                <div class="section-title"><i class="fas fa-map-marked-alt"></i> বিভাগ অনুযায়ী বাজারদর</div>
+                <div class="categories"> <!-- Categories will be generated by JS --> </div>
+                <div class="products-section" id="division-products-container" style="display: none;">
+                    <div class="products-grid" id="division-products"></div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="trends-tab">
+                <div class="products-section">
+                    <div class="section-title"><i class="fas fa-chart-line"></i> মূল্য প্রবণতা</div>
+                    <div class="products-grid" id="trend-products-list">
+                        <div class="empty-state"><i class="fas fa-hand-pointer"></i><p>প্রবণতা দেখতে কোনো পণ্যে ক্লিক করুন</p></div>
+                    </div>
+                    <div class="trend-chart" id="price-trend-chart">
+                        <div class="empty-state"><p>পণ্যের মূল্য চার্ট এখানে দেখানো হবে</p></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="profile-tab">
+                <div class="profile-section">
+                    <div class="section-title"><i class="fas fa-user-circle"></i> আমার প্রোফাইল</div>
+                    <div id="profile-info-container">
+                        <div class="empty-state"><i class="fas fa-user-lock"></i><p>প্রোফাইল দেখতে লগইন করুন</p></div>
+                    </div>
+                </div>
+                <div class="products-section" id="my-submissions-section" style="display: none;">
+                    <div class="section-title"><i class="fas fa-hourglass-half"></i> আমার অপেক্ষমান পণ্য</div>
+                    <div id="my-submissions-list"></div>
+                </div>
+            </div>
+            
+            <div class="add-product-btn" id="add-product-button"><i class="fas fa-plus"></i></div>
+            
+            <footer>
+                <div class="nav-item active" data-tab-name="today"><i class="fas fa-home"></i><span>হোম</span></div>
+                <div class="nav-item" data-tab-name="profile"><i class="fas fa-user"></i><span>প্রোফাইল</span></div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="login-modal">
+        <div class="modal-content">
+            <div class="modal-header"><div class="modal-title">লগইন</div><button class="modal-close" data-modal="login-modal">×</button></div>
+            <div class="modal-body"><form id="login-form"><div class="form-group"><label for="login-email">ইমেইল</label><input type="email" id="login-email" required></div><div class="form-group"><label for="login-password">পাসওয়ার্ড</label><input type="password" id="login-password" required></div></form></div>
+            <div class="modal-footer"><button class="btn btn-secondary modal-close" data-modal="login-modal">বাতিল</button><button class="btn btn-primary" id="login-submit-btn">লগইন</button></div>
+        </div>
+    </div>
+    <div class="modal" id="register-modal">
+        <div class="modal-content">
+            <div class="modal-header"><div class="modal-title">নতুন অ্যাকাউন্ট</div><button class="modal-close" data-modal="register-modal">×</button></div>
+            <div class="modal-body"><form id="register-form"><div class="form-group"><label for="register-name">নাম</label><input type="text" id="register-name" required></div><div class="form-group"><label for="register-email">ইমেইল</label><input type="email" id="register-email" required></div><div class="form-group"><label for="register-password">পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)</label><input type="password" id="register-password" required minlength="6"></div></form></div>
+            <div class="modal-footer"><button class="btn btn-secondary modal-close" data-modal="register-modal">বাতিল</button><button class="btn btn-primary" id="register-submit-btn">রেজিস্টার</button></div>
+        </div>
+    </div>
+    <div class="modal" id="add-product-modal">
+        <div class="modal-content">
+            <div class="modal-header"><div class="modal-title">নতুন পণ্য যোগ</div><button class="modal-close" data-modal="add-product-modal">×</button></div>
+            <div class="modal-body"><form id="add-product-form"><div class="form-group"><label for="add-product-name">পণ্যের নাম</label><input type="text" id="add-product-name" required></div><div class="form-group"><label for="add-product-division">বিভাগ</label><select id="add-product-division" required></select></div><div class="form-group"><label for="add-product-unit">একক</label><input type="text" id="add-product-unit" placeholder="যেমন: কেজি, লিটার" required></div><div class="form-group"><label for="add-product-price">বর্তমান মূল্য (৳)</label><input type="number" id="add-product-price" required step="0.01"></div><div class="form-group"><label for="add-product-image">ছবির লিংক (URL)</label><input type="url" id="add-product-image"></div></form></div>
+            <div class="modal-footer"><button class="btn btn-secondary modal-close" data-modal="add-product-modal">বাতিল</button><button class="btn btn-primary" id="add-product-submit-btn">জমা দিন</button></div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const firebaseConfig = { apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID", storageBucket: "YOUR_STORAGE_BUCKET", messagingSenderId: "YOUR_MESSAGING_SENDER_ID", appId: "YOUR_APP_ID" };
+            firebase.initializpp(firebaseConfig);
+            const auth = firebase.auth();
+            const db = firebase.firestore();
+
+            let allProducts = [];
+            const divisions = { dhaka: 'ঢাকা', chattogram: 'চট্টগ্রাম', khulna: 'খুলনা', rajshahi: 'রাজশাহী', barishal: 'বরিশাল', sylhet: 'সিলেট', rangpur: 'রংপুর', mymensingh: 'ময়মনসিংহ' };
+            const divisionIcons = { dhaka: 'fa-city', chattogram: 'fa-anchor', khulna: 'fa-fish', rajshahi: 'fa-apple-alt', barishal: 'fa-water', sylhet: 'fa-mountain', rangpur: 'fa-wheat-awn', mymensingh: 'fa-tractor' };
+
+            const showToast = (message, type = 'success') => { const toast = document.getElementById('toast'); toast.textContent = message; toast.className = `toast-notification ${type}`; toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 3000); };
+            const openModal = (modalId) => document.getElementById(modalId).classList.add('active');
+            const closeModal = (modalId) => document.getElementById(modalId).classList.remove('active');
+            
+            const switchTab = (tabName) => {
+                 document.querySelectorAll('.tab, .nav-item').forEach(el => el.classList.remove('active'));
+                 document.querySelectorAll(`.tab[data-tab="${tabName}"], .nav-item[data-tab-name="${tabName}"]`).forEach(el => el.classList.add('active'));
+                 document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+                 document.getElementById(`${tabName}-tab`).classList.add('active');
+            };
+
+            const renderProducts = (products, container) => {
+                container.innerHTML = '';
+                if (products.length === 0) { container.innerHTML = `<div class="empty-state"><i class="fas fa-box-open"></i><p>কোনো পণ্য পাওয়া যায়নি</p></div>`; return; }
+                products.forEach(p => {
+                    let changeClass = '', changeIcon = '', changeText = '';
+                    const changeType = p.changeType, changeAmount = p.changeAmount || 0;
+
+                    if (changeType === 'up' && changeAmount > 0) {
+                        changeClass = 'price-up'; changeIcon = '<i class="fas fa-arrow-up"></i>'; changeText = `৳${changeAmount.toFixed(2)} বেড়েছে`;
+                    } else if (changeType === 'down' && changeAmount > 0) {
+                        changeClass = 'price-down'; changeIcon = '<i class="fas fa-arrow-down"></i>'; changeText = `৳${Math.abs(changeAmount).toFixed(2)} কমেছে`;
+                    } else {
+                        changeIcon = '<i class="fas fa-minus"></i>'; changeText = 'অপরিবর্তিত';
+                    }
+                    
+                    const divisionName = p.division ? divisions[p.division] : 'সারাদেশে';
+
+                    const card = document.createElement('div'); card.className = 'product-card';
+                    card.innerHTML = `
+                        <div class="product-image"><img src="${p.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=2e7d32&color=fff&size=150`}" alt="${p.name}" loading="lazy"></div>
+                        <div class="product-info">
+                            <div class="product-name">${p.name}</div>
+                            <div class="product-meta"><span>${divisionName}</span><span>${p.unit || ''}</span></div>
+                            <div class="product-price">৳ ${(p.currentPrice || 0).toFixed(2)}</div>
+                            <div class="price-change ${changeClass}">${changeIcon} ${changeText}</div>
+                            ${p.addedBy && p.addedBy !== 'Admin' ? `<div class="added-by">যোগ করেছেন: ${p.addedBy.split('@')[0]}</div>` : ''}
+                        </div>`;
+                    card.addEventListener('click', () => showProductTrend(p));
+                    container.appendChild(card);
+                });
+            };
+
+            // *** MODIFIED FUNCTION for colorful trend chart ***
+            const drawPriceTrendChart = (product) => {
+                const chartContainer = document.getElementById('price-trend-chart');
+                chartContainer.innerHTML = '';
+                const history = Array.isArray(product.priceHistory) ? product.priceHistory.slice(-10) : [];
+
+                if (history.length < 2) {
+                    chartContainer.innerHTML = '<div class="empty-state"><p>প্রবণতা দেখানোর জন্য যথেষ্ট ডেটা নেই</p></div>';
+                    return;
+                }
+                
+                const maxPrice = Math.max(...history, 0);
+
+                history.forEach((price, index) => {
+                    const barHeight = maxPrice > 0 ? (price / maxPrice) * 100 : 0;
+                    const bar = document.createElement('div');
+                    bar.className = 'trend-bar';
+                    bar.style.height = `${barHeight}%`;
+                    
+                    // Determine bar color based on comparison with previous price
+                    let barColor = 'var(--primary)'; // Default color for the first bar
+                    if (index > 0) {
+                        const previousPrice = history[index - 1];
+                        if (price > previousPrice) {
+                            barColor = 'var(--danger)'; // Price increased
+                        } else if (price < previousPrice) {
+                            barColor = 'var(--success)'; // Price decreased
+                        } else {
+                            barColor = 'var(--gray)'; // Price is stable
+                        }
+                    }
+                    bar.style.backgroundColor = barColor;
+
+                    bar.innerHTML = `<div class="trend-label">৳${price.toFixed(2)}</div>`;
+                    chartContainer.appendChild(bar);
+                });
+            };
+            
+            const showProductTrend = (product) => { renderProducts([product], document.getElementById('trend-products-list')); drawPriceTrendChart(product); switchTab('trends'); };
+
+            db.collection('products').orderBy('updatedAt', 'desc').onSnapshot(snapshot => {
+                  const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                  const approvedProducts = products.filter(p => p.status === 'approved');
+                  allProducts = approvedProducts;
+                  renderProducts(allProducts, document.getElementById('today-products'));
+              }, error => {
+                  console.error("Firestore read error:", error);
+                  showToast('ডেটা লোড করতে সমস্যা হয়েছে।', 'error');
+              });
+
+            const updateAuthUI = (user) => {
+                const elements = { loginBtn: document.getElementById('login-btn'), registerBtn: document.getElementById('register-btn'), logoutBtn: document.getElementById('logout-btn'), avatar: document.getElementById('user-avatar-initial'), addProductBtn: document.getElementById('add-product-button'), profileInfo: document.getElementById('profile-info-container'), mySubmissions: document.getElementById('my-submissions-section') };
+                if (user) {
+                    elements.avatar.innerHTML = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+                    elements.loginBtn.style.display = 'none'; elements.registerBtn.style.display = 'none'; elements.logoutBtn.style.display = 'block';
+                    elements.addProductBtn.classList.add('visible');
+                    elements.profileInfo.innerHTML = `<div class="profile-info-item"><div class="profile-info-label">নাম</div><div class="profile-info-value">${user.displayName || 'নাম নেই'}</div></div><div class="profile-info-item"><div class="profile-info-label">ইমেইল</div><div class="profile-info-value">${user.email}</div></div>`;
+                    elements.mySubmissions.style.display = 'block';
+                    fetchUserSubmissions(user.uid);
+                } else {
+                    elements.avatar.innerHTML = '<i class="fas fa-user"></i>';
+                    elements.loginBtn.style.display = 'block'; elements.registerBtn.style.display = 'block'; elements.logoutBtn.style.display = 'none';
+                    elements.addProductBtn.classList.remove('visible');
+                    elements.profileInfo.innerHTML = `<div class="empty-state"><i class="fas fa-user-lock"></i><p>প্রোফাইল দেখতে লগইন করুন</p></div>`;
+                    elements.mySubmissions.style.display = 'none';
+                }
+            };
+            
+            const fetchUserSubmissions = (userId) => {
+                const listContainer = document.getElementById('my-submissions-list');
+                db.collection('products').where('addedById', '==', userId).orderBy('createdAt', 'desc')
+                  .onSnapshot(snapshot => {
+                      listContainer.innerHTML = '';
+                      if (snapshot.empty) { listContainer.innerHTML = '<div class="empty-state"><p>আপনার কোনো অপেক্ষমান পণ্য নেই।</p></div>'; return; }
+                      snapshot.forEach(doc => {
+                          const p = doc.data(); const item = document.createElement('div'); item.className = 'list-item';
+                          item.innerHTML = `<span>${p.name} (${p.division ? divisions[p.division] : 'সারাদেশে'})</span><span class="status-${p.status || 'pending'}">${p.status === 'approved' ? 'অনুমোদিত' : 'অপেক্ষমান'}</span>`;
+                          listContainer.appendChild(item);
+                      });
+                  });
+            };
+
+            auth.onAuthStateChanged(updateAuthUI);
+
+            document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
+            document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => { const tabName = item.dataset.tabName; if (tabName === 'profile' && !auth.currentUser) return openModal('login-modal'); switchTab(tabName); }));
+            document.getElementById('search-btn').addEventListener('click', () => { const term = document.getElementById('search-input').value.toLowerCase().trim(); const filtered = allProducts.filter(p => p.name.toLowerCase().includes(term)); renderProducts(filtered, document.getElementById('today-products')); switchTab('today'); });
+            document.getElementById('search-input').addEventListener('keyup', (e) => { if(e.key === 'Enter') document.getElementById('search-btn').click(); });
+            document.getElementById('login-btn').addEventListener('click', () => openModal('login-modal'));
+            document.getElementById('register-btn').addEventListener('click', () => openModal('register-modal'));
+            document.getElementById('add-product-button').addEventListener('click', () => auth.currentUser ? openModal('add-product-modal') : showToast('পণ্য যোগ করতে লগইন করুন।', 'error'));
+            document.querySelectorAll('.modal-close').forEach(btn => btn.addEventListener('click', () => closeModal(btn.dataset.modal)));
+            document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('active'); }));
+            document.getElementById('user-profile-menu').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('user-menu-dropdown').classList.toggle('active'); });
+            document.addEventListener('click', () => document.getElementById('user-menu-dropdown').classList.remove('active'));
+
+            const setupFormSubmission = (formId, btnId, action) => {
+                const form = document.getElementById(formId); const btn = document.getElementById(btnId);
+                btn.addEventListener('click', async () => { if (form.checkValidity()) { const originalText = btn.textContent; btn.disabled = true; await action(); btn.disabled = false; btn.textContent = originalText; } else { showToast('দয়া করে ফর্মের সব ঘর পূরণ করুন।', 'error'); } });
+            };
+            
+            setupFormSubmission('login-form', 'login-submit-btn', async () => { const e = document.getElementById('login-email').value, p = document.getElementById('login-password').value; try { await auth.signInWithEmailAndPassword(e, p); closeModal('login-modal'); document.getElementById('login-form').reset(); } catch(err) { showToast('ভুল ইমেইল অথবা পাসওয়ার্ড।', 'error'); } });
+            setupFormSubmission('register-form', 'register-submit-btn', async () => { const n = document.getElementById('register-name').value, e = document.getElementById('register-email').value, p = document.getElementById('register-password').value; try { const c = await auth.createUserWithEmailAndPassword(e, p); await c.user.updateProfile({ displayName: n }); closeModal('register-modal'); document.getElementById('register-form').reset(); showToast('অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে!'); } catch(err) { showToast(err.message, 'error'); } });
+            setupFormSubmission('add-product-form', 'add-product-submit-btn', async () => {
+                const user = auth.currentUser, price = parseFloat(document.getElementById('add-product-price').value);
+                const data = {
+                    name: document.getElementById('add-product-name').value, division: document.getElementById('add-product-division').value, unit: document.getElementById('add-product-unit').value,
+                    currentPrice: price, image: document.getElementById('add-product-image').value, previousPrice: 0, priceHistory: [price],
+                    addedBy: user.displayName || user.email, addedById: user.uid, status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    changeType: 'stable', changeAmount: 0 
+                };
+                try { await db.collection('products').add(data); showToast('আপনার পণ্যটি পর্যালোচনার জন্য জমা দেওয়া হয়েছে।'); closeModal('add-product-modal'); document.getElementById('add-product-form').reset(); } catch(e) { showToast(e.message, 'error'); }
+            });
+
+            const init = () => {
+                document.getElementById('current-date').textContent = new Date().toLocaleDateString('bn-BD', { weekday: 'long', day: 'numeric', month: 'long' });
+                const divisionSelect = document.getElementById('add-product-division'); 
+                divisionSelect.innerHTML = '<option value="">বিভাগ নির্বাচন করুন</option>';
+                
+                const categoriesContainer = document.querySelector('#divisions-tab .categories');
+                categoriesContainer.innerHTML = '';
+
+                const allDivisionsCard = document.createElement('div');
+                allDivisionsCard.className = 'category-card';
+                allDivisionsCard.dataset.division = 'all'; 
+                allDivisionsCard.innerHTML = `<div class="category-icon"><i class="fas fa-globe-asia"></i></div><div class="category-name">সারাদেশে</div>`;
+                categoriesContainer.appendChild(allDivisionsCard);
+
+                for (const key in divisions) {
+                    const card = document.createElement('div');
+                    card.className = 'category-card';
+                    card.dataset.division = key;
+                    card.innerHTML = `<div class="category-icon"><i class="fas ${divisionIcons[key]}"></i></div><div class="category-name">${divisions[key]}</div>`;
+                    categoriesContainer.appendChild(card);
+                    divisionSelect.add(new Option(divisions[key], key));
+                }
+
+                document.querySelectorAll('.category-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        document.querySelectorAll('.category-card').forEach(c => c.classList.remove('active'));
+                        card.classList.add('active');
+                        const divisionKey = card.dataset.division;
+                        let filtered;
+                        if (divisionKey === 'all') {
+                            filtered = allProducts.filter(p => !p.division);
+                        } else {
+                            filtered = allProducts.filter(p => p.division === divisionKey || !p.division);
+                        }
+                        renderProducts(filtered, document.getElementById('division-products'));
+                        document.getElementById('division-products-container').style.display = 'block';
+                    });
+                });
+
+                document.getElementById('logout-btn').addEventListener('click', () => { auth.signOut(); switchTab('today'); });
+            };
+            init();
+        });
+    </script>
+</body>
+</html>
